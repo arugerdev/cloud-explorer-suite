@@ -1,8 +1,57 @@
-# Welcome to your Lovable project
+# Cloud Explorer Suite
 
-## Project info
+Un moderno sistema de gestión de archivos en la nube con panel de administración integrado.
 
-**URL**: https://lovable.dev/projects/88012a44-ad10-47b0-ac78-90f0c0068054
+## 🚀 Características
+
+- 🔐 **Sistema de autenticación JWT** - Login seguro con roles de usuario
+- 👑 **Panel de administración** - Solo para usuarios admin
+- 📁 **Explorador de archivos** - Interfaz tipo explorador de carpetas
+- 🎨 **Diseño moderno** - UI clean con modo oscuro por defecto
+- 📱 **Responsive** - Optimizado para móviles y escritorio
+- ⚡ **API REST** - Integración con FastAPI backend
+
+## 🛠️ Configuración
+
+### Variables de Entorno
+
+Crea un archivo `.env.local` y configura:
+
+```bash
+# URL del backend FastAPI
+VITE_API_URL=http://storage.aruger.dev/api
+```
+
+### Usuarios de Prueba
+
+- **Admin**: `admin` / `admin123`
+- **Usuario**: `user1` / `user123`
+
+## 📡 Endpoints del Backend (FastAPI)
+
+### Autenticación
+- `POST /api/login` - Login de usuario
+  ```json
+  {
+    "username": "string",
+    "password": "string"
+  }
+  ```
+
+### Administración (Solo Admin)
+- `GET /api/users` - Lista de usuarios
+- `DELETE /api/users/{userId}` - Eliminar usuario
+- `POST /api/users/{userId}/reset-password` - Resetear contraseña
+- `GET /api/admin/storage-stats` - Estadísticas de almacenamiento
+
+### Archivos
+- `GET /api/storage/{username}` - Archivos del usuario
+- `POST /api/upload` - Subir archivo
+- `POST /api/download` - Descargar archivo
+
+---
+
+**Project URL**: https://lovable.dev/projects/88012a44-ad10-47b0-ac78-90f0c0068054
 
 ## How can I edit this code?
 
