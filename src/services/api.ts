@@ -1,7 +1,7 @@
 import { getApiUrl } from '../config/api';
 import { LoginRequest, LoginResponse, User, StorageStats, ApiError } from '../types/auth';
 import { FileSystemItem } from '../data/mockFileSystem';
-import { jwt_decode } from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode';
 
 class ApiService {
   private getToken(): string | null {
