@@ -1,6 +1,7 @@
 import { getApiUrl } from '../config/api';
 import { LoginRequest, LoginResponse, User, StorageStats, ApiError } from '../types/auth';
 import { FileSystemItem } from '../data/mockFileSystem';
+import jwt_decode from 'jwt-decode';
 
 class ApiService {
   private getToken(): string | null {
@@ -26,7 +27,9 @@ class ApiService {
     return response.json();
   }
 
+  // --------------------
   // Authentication
+  // --------------------
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     const response = await fetch(getApiUrl('/login'), {
       method: 'POST',
@@ -43,7 +46,25 @@ class ApiService {
     localStorage.removeItem('auth_token');
   }
 
+  // Obtener usuario actual desde JWT
+  getCurrentUser(): User | null {
+    const token = this.getToken();
+    if (!token) return null;
+    try {
+      const decoded: any = jwt_decode(token);
+      return {
+        username: decoded.sub,
+        role: decoded.is_admin ? 'admin' : 'user',
+      } as User;
+    } catch (err) {
+      console.error('Token inválido:', err);
+      return null;
+    }
+  }
+
+  // --------------------
   // Admin endpoints
+  // --------------------
   async getUsers(): Promise<User[]> {
     const response = await fetch(getApiUrl('/users'), {
       headers: this.getHeaders(),
@@ -75,9 +96,13 @@ class ApiService {
     return this.handleResponse<StorageStats>(response);
   }
 
+  // --------------------
   // File operations
-  async getUserFiles(username: string): Promise<FileSystemItem[]> {
-    const response = await fetch(getApiUrl(`/storage/${username}`), {
+  // --------------------
+  async getUserFiles(path: string = '/'): Promise<FileSystemItem[]> {
+    const user = this.getCurrentUser();
+    if (!user) throw new Error('Usuario no autenticado');
+    const response = await fetch(getApiUrl(`/storage/${user.username}?path=${encodeURIComponent(path)}`), {
       headers: this.getHeaders(),
     });
     return this.handleResponse<FileSystemItem[]>(response);
@@ -112,6 +137,24 @@ class ApiService {
     }
     
     return response.blob();
+  }
+
+  async deleteFiles(filePaths: string[]): Promise<void> {
+    const response = await fetch(getApiUrl('/delete'), {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ paths: filePaths }),
+    });
+    await this.handleResponse<void>(response);
+  }
+
+  async createFolder(path: string): Promise<void> {
+    const response = await fetch(getApiUrl('/create-folder'), {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ path }),
+    });
+    await this.handleResponse<void>(response);
   }
 }
 
