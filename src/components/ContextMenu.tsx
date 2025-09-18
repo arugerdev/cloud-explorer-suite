@@ -55,6 +55,23 @@ export function ContextMenu({ x, y, onClose, items, isEmptySpace }: ContextMenuP
     };
   }, [onClose]);
 
+  const handleDownload = async (files: FileSystemItem[]) => {
+      try {
+        for (const f of files) {
+          const blob = await apiService.downloadFile(f.name);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = f.name;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+      } catch (err) {
+        console.error("Error descargando archivos:", err);
+      }
+      onClose();
+    };
+  
   const emptySpaceActions: MenuAction[] = [
     {
       label: 'Nueva carpeta',
@@ -87,10 +104,7 @@ export function ContextMenu({ x, y, onClose, items, isEmptySpace }: ContextMenuP
     {
       label: items.length === 1 ? 'Descargar' : `Descargar (${items.length})`,
       icon: Download,
-      action: () => {
-        console.log('Descargar archivos:', items);
-        onClose();
-      },
+      action: () => handleDownload(items),
     },
     {
       label: 'Compartir',
