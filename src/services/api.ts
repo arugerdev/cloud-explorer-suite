@@ -51,7 +51,7 @@ class ApiService {
     const token = this.getToken();
     if (!token) return null;
     try {
-      const decoded: any = jwt_decode(token);
+      const decoded: any = jwtDecode(token);
       return {
         username: decoded.sub,
         role: decoded.is_admin ? 'admin' : 'user',
