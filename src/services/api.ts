@@ -2,6 +2,7 @@ import { getApiUrl } from '../config/api';
 import { LoginRequest, LoginResponse, User, StorageStats, ApiError } from '../types/auth';
 import { FileSystemItem } from '../data/mockFileSystem';
 import { jwtDecode } from 'jwt-decode';
+
 class ApiService {
   renameItem(path: string, newName: string) {
     return fetch(getApiUrl('/rename'), {
