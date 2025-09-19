@@ -1,6 +1,7 @@
 import { apiService } from "../services/api";
 
 export interface FileSystemItem {
+  isEditing: boolean;
   id: string;
   name: string;
   type: 'folder' | 'file';
@@ -18,27 +19,29 @@ export const getFilesByPath = async (path: string): Promise<FileSystemItem[]> =>
     const username = (await apiService.getCurrentUser())?.username;
     if (!username) return [];
 
-    const allFiles = await apiService.getUserFiles(username);
-    if (path === "/") {
-      return allFiles.filter(f => !f.parentId);
-    }
+    // Pedimos al backend solo la carpeta actual
+    const files = await apiService.getUserFiles(path);
 
-    const parent = allFiles.find(f => f.path === path);
-    if (!parent) return [];
-
-    return allFiles.filter(f => f.parentId === parent.id);
+    return files.map(f => ({
+      ...f,
+      isExpanded: false,
+      children: f.type === "folder" ? [] : undefined,
+    }));
   } catch (err) {
     console.error("Error obteniendo archivos:", err);
     return [];
   }
 };
 
+
+
+
 export const buildFileTree = async (): Promise<FileSystemItem[]> => {
   try {
     const username = (await apiService.getCurrentUser())?.username;
     if (!username) return [];
 
-    const allFiles = await apiService.getUserFiles(username);
+    const allFiles = await apiService.getUserFiles("/");
 
     const rootItems = allFiles.filter(f => !f.parentId);
 

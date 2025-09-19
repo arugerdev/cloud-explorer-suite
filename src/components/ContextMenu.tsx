@@ -1,3 +1,4 @@
+// ContextMenu.tsx
 import { useEffect, useRef } from "react";
 import {
   Download,
@@ -13,6 +14,7 @@ import {
   Info,
 } from "lucide-react";
 import { FileSystemItem } from "../data/mockFileSystem";
+import { apiService } from "@/services/api";
 
 interface ContextMenuProps {
   x: number;
@@ -20,6 +22,9 @@ interface ContextMenuProps {
   onClose: () => void;
   items: FileSystemItem[];
   isEmptySpace: boolean;
+  startCreateItem: (type: "folder" | "file") => void;
+  reloadFiles: () => void;
+  reloadSidebar: () => void;
 }
 
 interface MenuAction {
@@ -30,7 +35,7 @@ interface MenuAction {
   separator?: boolean;
 }
 
-export function ContextMenu({ x, y, onClose, items, isEmptySpace }: ContextMenuProps) {
+export function ContextMenu({ x, y, onClose, items, isEmptySpace, startCreateItem, reloadFiles, reloadSidebar }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -56,46 +61,43 @@ export function ContextMenu({ x, y, onClose, items, isEmptySpace }: ContextMenuP
   }, [onClose]);
 
   const handleDownload = async (files: FileSystemItem[]) => {
-      try {
-        for (const f of files) {
-          const blob = await apiService.downloadFile(f.name);
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = f.name;
-          a.click();
-          URL.revokeObjectURL(url);
-        }
-      } catch (err) {
-        console.error("Error descargando archivos:", err);
+    try {
+      for (const f of files) {
+        const blob = await apiService.downloadFile(f.path);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = f.name;
+        a.click();
+        URL.revokeObjectURL(url);
       }
-      onClose();
-    };
-  
+    } catch (err) {
+      console.error("Error descargando archivos:", err);
+    }
+    onClose();
+  };
+
   const emptySpaceActions: MenuAction[] = [
     {
-      label: 'Nueva carpeta',
+      label: "Nueva carpeta",
       icon: FolderPlus,
       action: () => {
-        console.log('Crear nueva carpeta');
         onClose();
+        startCreateItem("folder");
       },
     },
     {
-      label: 'Nuevo archivo',
+      label: "Nuevo archivo",
       icon: FilePlus,
       action: () => {
-        console.log('Crear nuevo archivo');
         onClose();
+        startCreateItem("file");
       },
     },
     {
       label: 'Pegar',
       icon: Clipboard,
-      action: () => {
-        console.log('Pegar');
-        onClose();
-      },
+      action: undefined,
       separator: true,
     },
   ];
@@ -109,59 +111,46 @@ export function ContextMenu({ x, y, onClose, items, isEmptySpace }: ContextMenuP
     {
       label: 'Compartir',
       icon: Share,
-      action: () => {
-        console.log('Compartir archivos:', items);
-        onClose();
-      },
+      action: undefined,
       separator: true,
     },
     {
       label: 'Copiar',
       icon: Copy,
-      action: () => {
-        console.log('Copiar archivos:', items);
-        onClose();
-      },
+      action: undefined,
     },
     {
       label: 'Cortar',
       icon: Scissors,
-      action: () => {
-        console.log('Cortar archivos:', items);
-        onClose();
-      },
+      action: undefined,
     },
     {
       label: items.length === 1 ? 'Renombrar' : 'Renombrar múltiples',
       icon: Edit3,
-      action: () => {
-        console.log('Renombrar archivos:', items);
-        onClose();
-      },
+      action: undefined,
       separator: true,
     },
     {
       label: 'Comprimir',
       icon: Archive,
-      action: () => {
-        console.log('Comprimir archivos:', items);
-        onClose();
-      },
+      action: undefined,
     },
     {
       label: 'Propiedades',
       icon: Info,
-      action: () => {
-        console.log('Ver propiedades:', items);
-        onClose();
-      },
+      action: undefined,
       separator: true,
     },
     {
       label: items.length === 1 ? 'Eliminar' : `Eliminar (${items.length})`,
       icon: Trash2,
       action: () => {
-        console.log('Eliminar archivos:', items);
+        apiService.deleteFiles(items.map(i => i.path)).then(() => {
+          reloadFiles();
+          reloadSidebar();
+        }).catch(err => {
+          console.error("Error eliminando archivos:", err);
+        });
         onClose();
       },
       destructive: true,
@@ -170,7 +159,6 @@ export function ContextMenu({ x, y, onClose, items, isEmptySpace }: ContextMenuP
 
   const actions = isEmptySpace ? emptySpaceActions : fileActions;
 
-  // Adjust menu position to stay within viewport
   const adjustedX = Math.min(x, window.innerWidth - 200);
   const adjustedY = Math.min(y, window.innerHeight - actions.length * 40);
 
@@ -186,10 +174,10 @@ export function ContextMenu({ x, y, onClose, items, isEmptySpace }: ContextMenuP
       {actions.map((action, index) => (
         <div key={index}>
           <button
-            className={`context-menu-item w-full ${
-              action.destructive ? 'text-destructive hover:text-destructive-foreground' : ''
-            }`}
+            className={`context-menu-item w-full ${action.destructive ? 'text-destructive hover:text-destructive-foreground' : ''
+              } ${action.action === undefined ? 'opacity-50 cursor-not-allowed' : ''}`}
             onClick={action.action}
+            disabled={action.action === undefined}
           >
             <action.icon className="mr-2 h-4 w-4" />
             {action.label}

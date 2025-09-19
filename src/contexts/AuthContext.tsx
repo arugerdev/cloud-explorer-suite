@@ -36,13 +36,25 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Check for existing token on app load
     const token = localStorage.getItem('auth_token');
     if (token) {
-      // Here you could validate the token with the backend
-      // For now, we'll just set loading to false
-      setIsLoading(false);
+      const fetchUser = async () => {
+        setIsLoading(true);
+        try {
+          const userData = await apiService.getCurrentUser(token); // Debes tener este método en tu apiService
+          setUser(userData);
+        } catch (error) {
+          localStorage.removeItem('auth_token');
+          setUser(null);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchUser();
     } else {
       setIsLoading(false);
     }
   }, []);
+
+
 
   const login = async (credentials: LoginRequest) => {
     setIsLoading(true);

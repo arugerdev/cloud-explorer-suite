@@ -8,6 +8,7 @@ interface FileGridProps {
   onSelectionChange: (items: FileSystemItem[]) => void;
   onItemDoubleClick: (item: FileSystemItem) => void;
   onContextMenu: (e: React.MouseEvent, items: FileSystemItem[]) => void;
+  onFinishEditing: (item: FileSystemItem, newName: string, cancelled?: boolean) => void;
 }
 
 interface SelectionRectangle {
@@ -22,7 +23,8 @@ export function FileGrid({
   selectedItems, 
   onSelectionChange, 
   onItemDoubleClick,
-  onContextMenu
+  onContextMenu,
+  onFinishEditing
 }: FileGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const [isSelecting, setIsSelecting] = useState(false);
@@ -30,8 +32,7 @@ export function FileGrid({
   const [dragStarted, setDragStarted] = useState(false);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0) return; // Only handle left mouse button
-    
+    if (e.button !== 0) return;
     const rect = gridRef.current?.getBoundingClientRect();
     if (!rect) return;
 
@@ -39,14 +40,8 @@ export function FileGrid({
     const startY = e.clientY - rect.top;
     
     setIsSelecting(true);
-    setSelectionRect({
-      startX,
-      startY,
-      endX: startX,
-      endY: startY,
-    });
+    setSelectionRect({ startX, startY, endX: startX, endY: startY });
     setDragStarted(false);
-
     e.preventDefault();
   }, []);
 
@@ -60,7 +55,6 @@ export function FileGrid({
     setDragStarted(true);
     setSelectionRect(prev => prev ? { ...prev, endX, endY } : null);
 
-    // Calculate which items are within the selection rectangle
     const minX = Math.min(selectionRect.startX, endX);
     const maxX = Math.max(selectionRect.startX, endX);
     const minY = Math.min(selectionRect.startY, endY);
@@ -96,7 +90,6 @@ export function FileGrid({
     if (isSelecting) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
-      
       return () => {
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
@@ -106,9 +99,7 @@ export function FileGrid({
 
   const handleItemClick = (e: React.MouseEvent, item: FileSystemItem) => {
     e.stopPropagation();
-    
     if (e.ctrlKey || e.metaKey) {
-      // Multi-select with Ctrl/Cmd
       const isSelected = selectedItems.some(selected => selected.id === item.id);
       if (isSelected) {
         onSelectionChange(selectedItems.filter(selected => selected.id !== item.id));
@@ -116,18 +107,14 @@ export function FileGrid({
         onSelectionChange([...selectedItems, item]);
       }
     } else if (e.shiftKey && selectedItems.length > 0) {
-      // Range select with Shift
       const lastSelected = selectedItems[selectedItems.length - 1];
       const startIndex = items.findIndex(i => i.id === lastSelected.id);
       const endIndex = items.findIndex(i => i.id === item.id);
-      
       const start = Math.min(startIndex, endIndex);
       const end = Math.max(startIndex, endIndex);
-      
       const rangeItems = items.slice(start, end + 1);
       onSelectionChange(rangeItems);
     } else {
-      // Single select
       onSelectionChange([item]);
     }
   };
@@ -140,14 +127,11 @@ export function FileGrid({
   const handleContextMenuClick = (e: React.MouseEvent, item?: FileSystemItem) => {
     e.preventDefault();
     e.stopPropagation();
-    
     if (item) {
-      // Right-click on item
       const isItemSelected = selectedItems.some(selected => selected.id === item.id);
       const itemsToUse = isItemSelected ? selectedItems : [item];
       onContextMenu(e, itemsToUse);
     } else {
-      // Right-click on empty space
       onContextMenu(e, []);
     }
   };
@@ -184,8 +168,22 @@ export function FileGrid({
                 extension={item.extension} 
                 className="h-8 w-8" 
               />
-              <div className="space-y-1">
-                <p className="text-sm font-medium truncate w-full">{item.name}</p>
+              <div className="space-y-1 w-full">
+                {item.isEditing ? (
+                  <input
+                    autoFocus
+                    defaultValue={""}
+                    placeholder={item.name}
+                    className="text-sm font-medium w-full border rounded px-1 bg-background"
+                    onBlur={(e) => onFinishEditing(item, e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") onFinishEditing(item, (e.target as HTMLInputElement).value);
+                      if (e.key === "Escape") onFinishEditing(item, item.name, true);
+                    }}
+                  />
+                ) : (
+                  <p className="text-sm font-medium truncate w-full">{item.name}</p>
+                )}
                 {item.type === 'file' && item.size && (
                   <p className="text-xs text-muted-foreground">
                     {formatFileSize(item.size)}
@@ -200,7 +198,6 @@ export function FileGrid({
         ))}
       </div>
 
-      {/* Selection Rectangle */}
       {isSelecting && selectionRect && dragStarted && (
         <div
           className="selection-rectangle"

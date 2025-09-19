@@ -1,9 +1,24 @@
 import { getApiUrl } from '../config/api';
 import { LoginRequest, LoginResponse, User, StorageStats, ApiError } from '../types/auth';
 import { FileSystemItem } from '../data/mockFileSystem';
-import jwt_decode from 'jwt-decode';
-
+import { jwtDecode } from 'jwt-decode';
 class ApiService {
+  renameItem(path: string, newName: string) {
+    return fetch(getApiUrl('/rename'), {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ path, newName }),
+    }).then(response => this.handleResponse<void>(response));
+  }
+  createItem(arg0: { type: "folder" | "file"; name: string; path: string; }) {
+    if (arg0.type === "folder") {
+      return this.createFolder(`${arg0.path}/${arg0.name}`);
+    }
+    if (arg0.type === "file") {
+      return this.createFile(`${arg0.path}/${arg0.name}`);
+    }
+    throw new Error("Tipo de item no soportado");
+  }
   private getToken(): string | null {
     return localStorage.getItem('auth_token');
   }
@@ -36,22 +51,23 @@ class ApiService {
       headers: this.getHeaders(),
       body: JSON.stringify(credentials),
     });
-    
+
     const data = await this.handleResponse<LoginResponse>(response);
     localStorage.setItem('auth_token', data.access_token);
     return data;
   }
+
 
   async logout(): Promise<void> {
     localStorage.removeItem('auth_token');
   }
 
   // Obtener usuario actual desde JWT
-  getCurrentUser(): User | null {
-    const token = this.getToken();
+  getCurrentUser(tokenOverride?: string): User | null {
+    const token = tokenOverride || this.getToken();
     if (!token) return null;
     try {
-      const decoded: any = jwt_decode(token);
+      const decoded: any = jwtDecode(token);
       return {
         username: decoded.sub,
         role: decoded.is_admin ? 'admin' : 'user',
@@ -61,6 +77,8 @@ class ApiService {
       return null;
     }
   }
+
+
 
   // --------------------
   // Admin endpoints
@@ -121,21 +139,25 @@ class ApiService {
       },
       body: formData,
     });
-    
+
     await this.handleResponse<void>(response);
   }
 
   async downloadFile(filePath: string): Promise<Blob> {
+    const formData = new FormData();
+    formData.append("path", filePath);
+    console.log(filePath);
+
+    const token = this.getToken();
     const response = await fetch(getApiUrl('/download'), {
       method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify({ path: filePath }),
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData
     });
-    
-    if (!response.ok) {
-      throw new Error('Download failed');
-    }
-    
+
+    if (!response.ok) throw new Error('Download failed');
     return response.blob();
   }
 
@@ -153,6 +175,14 @@ class ApiService {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({ path }),
+    });
+    await this.handleResponse<void>(response);
+  }
+  async createFile(path: string): Promise<void> {
+    const response = await fetch(getApiUrl('/create-file'), {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ path }), // path completo incluyendo nombre del archivo
     });
     await this.handleResponse<void>(response);
   }
